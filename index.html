@@ -868,7 +868,8 @@
             
             <div class="fun-fact-box">
                 <h3>🎯 Instructions</h3>
-                <p>Circle the letter or letters of each correct answer. A question may have more than one correct answer.</p>
+                <p><strong>Circle the letter or letters of each correct answer. A question may have more than one correct answer.</strong></p>
+                <p style="margin-top: 10px; color: #bf360c;"><em>💡 Tip: You can click multiple answers for each question! Click an answer again to deselect it.</em></p>
             </div>
 
             <div class="question-container">
@@ -1414,16 +1415,26 @@
         }
 
         function selectChoice(element, questionId, correctAnswer) {
-            // Remove previous selections for this question
             const questionContainer = element.closest('.question-container');
-            questionContainer.querySelectorAll('.choice-option').forEach(option => {
-                option.classList.remove('selected');
-            });
+            const sectionId = element.closest('.section').id;
             
-            // Mark this choice as selected
-            element.classList.add('selected');
+            // Check if this is Section C (which allows multiple selections)
+            if (sectionId === 'sectionC') {
+                // Toggle selection for Section C (multiple choice allowed)
+                if (element.classList.contains('selected')) {
+                    element.classList.remove('selected');
+                } else {
+                    element.classList.add('selected');
+                }
+            } else {
+                // For other sections, only allow one selection per question
+                questionContainer.querySelectorAll('.choice-option').forEach(option => {
+                    option.classList.remove('selected');
+                });
+                element.classList.add('selected');
+            }
             
-            // Store the answer
+            // Store the correct answer
             element.setAttribute('data-question', questionId);
             element.setAttribute('data-correct', correctAnswer);
         }
@@ -1433,20 +1444,44 @@
             const questions = document.querySelectorAll('#sectionC .question-container');
             
             questions.forEach(question => {
-                const selectedOption = question.querySelector('.choice-option.selected');
-                if (selectedOption) {
-                    const userAnswer = selectedOption.dataset.value;
-                    const correctAnswer = selectedOption.dataset.correct;
+                const selectedOptions = question.querySelectorAll('.choice-option.selected');
+                const allOptions = question.querySelectorAll('.choice-option');
+                
+                // Get the correct answers from the onclick attribute of the first option
+                const firstOption = question.querySelector('.choice-option');
+                if (!firstOption) return;
+                
+                const onclickAttr = firstOption.getAttribute('onclick');
+                // Extract the correct answer from: onclick="selectChoice(this, 'q21', 'c')"
+                const match = onclickAttr.match(/selectChoice\(this,\s*'[^']+',\s*'([^']+)'\)/);
+                if (!match) return;
+                
+                const correctAnswerString = match[1];
+                const correctAnswers = correctAnswerString.split(',').map(a => a.trim());
+                
+                // Get user's selected answers
+                const userAnswers = Array.from(selectedOptions).map(opt => opt.getAttribute('data-value'));
+                
+                // Check if the user selected exactly the right answers
+                const isCorrect = correctAnswers.length === userAnswers.length &&
+                                 correctAnswers.every(ans => userAnswers.includes(ans)) &&
+                                 userAnswers.every(ans => correctAnswers.includes(ans));
+                
+                if (isCorrect) {
+                    score++;
+                    // Mark selected answers as correct
+                    selectedOptions.forEach(opt => opt.classList.add('correct'));
+                } else {
+                    // Mark selected answers as incorrect
+                    selectedOptions.forEach(opt => opt.classList.add('incorrect'));
                     
-                    if (userAnswer === correctAnswer) {
-                        selectedOption.classList.add('correct');
-                        score++;
-                    } else {
-                        selectedOption.classList.add('incorrect');
-                        // Show correct answer
-                        const correctOption = question.querySelector(`[data-value="${correctAnswer}"]`);
-                        if (correctOption) correctOption.classList.add('correct');
-                    }
+                    // Show all correct answers
+                    allOptions.forEach(opt => {
+                        const value = opt.getAttribute('data-value');
+                        if (correctAnswers.includes(value)) {
+                            opt.classList.add('correct');
+                        }
+                    });
                 }
             });
             
